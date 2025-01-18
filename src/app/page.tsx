@@ -165,7 +165,7 @@ const MangoClassifier = () => {
                         <h4 className="font-semibold text-gray-700">
                             Detailed Analysis:
                         </h4>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {prediction.probabilities.map(
                                 ({ className, probability }) => (
                                     <div
