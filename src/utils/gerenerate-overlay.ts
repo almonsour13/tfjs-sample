@@ -1,6 +1,5 @@
 "use client"
 import * as tf from "@tensorflow/tfjs";
-import { useRef } from "react";
 
 export const generateHeatmapOverlay = async (
     heatmap: number[][],

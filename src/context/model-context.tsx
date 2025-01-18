@@ -29,9 +29,11 @@ interface ModelContextType {
     model: tf.LayersModel | null;
     isLoading: boolean;
     isAnalyzing: boolean;
+    error:string | null;
+    setError:React.Dispatch<React.SetStateAction<string | null>>;
     setIsAnalyzing: React.Dispatch<React.SetStateAction<boolean>>;
     prediction: PredictionResult | null;
-    predict: (image: HTMLImageElement) => void;
+    predict: (image: string) => void;
 }
 
 // Create the context with a default value
@@ -81,7 +83,7 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             return tensor;
         });
     };
-    const predict = async (image: HTMLImageElement) => {
+    const predict = async (image: string) => {
         setIsAnalyzing(true);
         setPrediction(null)
 
@@ -89,8 +91,11 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             if (!model) {
                 throw new Error("Model not loaded");
             }
+            
+            const img = new Image();
+            img.src = image;
 
-            const inputTensor = await preprocessImage(image);
+            const inputTensor = await preprocessImage(img);
             const predictionTensor = model.predict(inputTensor) as tf.Tensor;
             const predictionArray = await predictionTensor.data();
             const predictedClassIndex = predictionArray.indexOf(
@@ -117,15 +122,15 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             };
 
             setPrediction(initialPrediction);
-            // const heatmaps = await gradClassActivationMap(model, inputTensor, [
-            //     predictedClassIndex,
-            // ]);
-            // const heatmapUrl = await generateHeatmapOverlay(heatmaps[0], image);
+            const heatmaps = await gradClassActivationMap(model, inputTensor, [
+                predictedClassIndex,
+            ]);
+            const heatmapUrl = await generateHeatmapOverlay(heatmaps[0], img);
 
-            // setPrediction((prev) => ({
-            //     ...prev!,
-            //     heatmapUrl: heatmapUrl || undefined,
-            // }));
+            setPrediction((prev) => ({
+                ...prev!,
+                heatmapUrl: heatmapUrl || undefined,
+            }));
             tf.dispose([inputTensor, predictionTensor]);
         } catch (err) {
             setError(
@@ -144,6 +149,8 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
                 model,
                 isLoading,
                 isAnalyzing,
+                error,
+                setError,
                 setIsAnalyzing,
                 prediction,
                 predict,
