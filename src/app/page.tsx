@@ -1,101 +1,218 @@
-import Image from "next/image";
+"use client";
+import { useModel } from "@/context/model-context";
+import { useRef, useState } from "react";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+const classes = [
+    "Anthracnose",
+    "Bacterial Canker",
+    "Cutting Weevil",
+    "Die Back",
+    "Gall Midge",
+    "Healthy",
+    "Powdery Mildew",
+    "Sooty Mould",
+];
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+interface PredictionResult {
+    className: string;
+    probability: number;
+    probabilities: Array<{
+        className: string;
+        probability: number;
+    }>;
+    heatmapUrl?: string;
 }
+
+const MangoClassifier = () => {
+    const { isLoading, isAnalyzing, prediction, setIsAnalyzing, predict } = useModel();
+    const [error, setError] = useState<string | null>(null);
+    const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
+    const imageRef = useRef<HTMLImageElement | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setIsImageLoading(true);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target?.result as string;
+                img.onload = () => {
+                    if (imageRef.current) {
+                        imageRef.current.src = img.src;
+                    }
+                    setIsImageLoading(false);
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const makePrediction = async () => {
+        setIsAnalyzing(true)
+        try {
+
+            if (!imageRef.current) {
+                throw new Error("No image selected");
+            }
+
+            await predict(imageRef.current)
+           
+        } catch (err) {
+            setError(
+                `Prediction failed: ${
+                    err instanceof Error ? err.message : "Unknown error"
+                }`
+            );
+        }
+    };
+    
+    if (isLoading) {
+        return <div>Loading Mango Disease Classification model...</div>;
+    }
+    if (error) {
+        return <div>Error: {error}</div>;
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto p-4">
+            <h2 className="text-2xl font-bold mb-4">
+                Mango Disease Classifier
+            </h2>
+            <div className="mb-4">
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    ref={fileInputRef}
+                    className="mb-2 block w-full text-sm"
+                />
+            </div>
+        
+            <div className="mb-4 relative">
+                {isImageLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-75 rounded-lg">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    </div>
+                )}
+                <img
+                    ref={imageRef}
+                    alt="Upload preview"
+                    className="max-w-sm mx-auto rounded-lg shadow-lg"
+                    style={{
+                        display: imageRef.current ? "block" : "none",
+                        maxHeight: "300px",
+                        objectFit: "contain",
+                    }}
+                />
+                <canvas ref={canvasRef} style={{ display: "none" }} />
+            </div>
+
+            <button
+                onClick={makePrediction}
+                disabled={!imageRef.current || isImageLoading || isAnalyzing}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg   "
+            >
+                {isAnalyzing
+                    ? "Analyzing..."
+                    : "Analyze Image"}
+            </button>
+
+            {isAnalyzing && (
+                <div className="mt-4 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+            )}
+            {prediction && (
+                <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="text-xl font-bold mb-4">
+                        Diagnosis Results
+                    </h3>
+
+                    <div className="mb-4">
+                        <div className="text-lg">
+                            Primary Diagnosis:
+                            <span
+                                className={`font-bold ml-2 ${
+                                    prediction.className === "Healthy"
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                }`}
+                            >
+                                {prediction.className}
+                            </span>
+                        </div>
+                        <div className="text-gray-600">
+                            Confidence:{" "}
+                            {(prediction.probability * 100).toFixed(1)}%
+                        </div>
+                    </div>
+
+                    {prediction.heatmapUrl? (
+                        <div className="mb-6">
+                            <h4 className="font-semibold text-gray-700 mb-2">
+                                Heatmap Visualization:
+                            </h4>
+                            <img
+                                src={
+                                    prediction.heatmapUrl || "/placeholder.svg"
+                                }
+                                alt="Heatmap visualization"
+                                className="max-w-sm mx-auto rounded-lg shadow-lg h-80 w-80 aspect-square"
+                            />
+                            <p className="text-sm text-gray-600 mt-2">
+                                The heatmap shows areas of the image that
+                                influenced the classification decision. Each
+                                color represents a unique importance level, with
+                                a smooth transition across the spectrum. This
+                                detailed visualization highlights even subtle
+                                differences in the model's focus areas.
+                            </p>
+                        </div>
+                    ):(
+                        <div className="h-80 w-80 aspect-square animate-pulse">
+
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-700">
+                            Detailed Analysis:
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2">
+                        {prediction.probabilities.map(
+                            ({ className, probability }) => (
+                                <div key={className} className="space-y-1 p-4 border rounded-lg shadow">
+                                    <div className="flex justify-between text-sm">
+                                        <span>{className}</span>
+                                        <span>
+                                            {(probability * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className={`h-2 rounded-full ${
+                                                className === "Healthy"
+                                                    ? "bg-green-500"
+                                                    : "bg-blue-500"
+                                            }`}
+                                            style={{
+                                                width: `${probability * 100}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )
+                        )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MangoClassifier;
