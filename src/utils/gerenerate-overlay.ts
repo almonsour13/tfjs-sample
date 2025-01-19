@@ -1,17 +1,45 @@
-"use client"
-import * as tf from "@tensorflow/tfjs";
+import { toast } from "@/hooks/use-toast";
+
+// Helper function to interpolate between colors
+function interpolateColor(
+    val: number,
+    colors: [number, number, number][]
+): [number, number, number] {
+    if (val <= 0) return colors[0];
+    if (val >= 1) return colors[colors.length - 1];
+
+    const idx = (colors.length - 1) * val;
+    const lowerIdx = Math.floor(idx);
+    const upperIdx = Math.ceil(idx);
+    const t = idx - lowerIdx;
+
+    const c1 = colors[lowerIdx];
+    const c2 = colors[upperIdx];
+
+    return [
+        Math.round(c1[0] * (1 - t) + c2[0] * t),
+        Math.round(c1[1] * (1 - t) + c2[1] * t),
+        Math.round(c1[2] * (1 - t) + c2[2] * t),
+    ];
+}
 
 export const generateHeatmapOverlay = async (
     heatmap: number[][],
-    originalImage: HTMLImageElement
+    originalImage: HTMLImageElement,
+    alpha: number = 0.5 // Blend factor between original image and heatmap
 ) => {
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = originalImage.width;
     canvas.height = originalImage.height;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
 
-    // Set canvas size to match the original image
+    if (!ctx) {
+        toast({
+            description: "Could not get canvas context.",
+            variant: "destructive",
+        });
+        return;
+    }
 
     // Draw original image
     ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
@@ -20,68 +48,37 @@ export const generateHeatmapOverlay = async (
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Scale heatmap to match canvas dimensions
-    const scaledHeatmap = tf.tidy(() => {
-        const heatmapTensor = tf.tensor3d(
-            heatmap.map((row) => row.map((val) => [val])),
-            [heatmap.length, heatmap[0].length, 1]
-        );
-        return tf.image.resizeBilinear(heatmapTensor, [
-            canvas.height,
-            canvas.width,
-        ]);
-    });
+    // Define color gradient (from blue to red, similar to OpenCV's COLORMAP_JET)
+    const colors: [number, number, number][] = [
+        [0, 0, 255], // Blue
+        [0, 255, 255], // Cyan
+        [0, 255, 0], // Green
+        [255, 255, 0], // Yellow
+        [255, 0, 0], // Red
+    ];
 
-    const heatmapData = await scaledHeatmap.data();
-    scaledHeatmap.dispose();
+    // Scale heatmap to image dimensions
+    const scaleX = canvas.width / heatmap[0].length;
+    const scaleY = canvas.height / heatmap.length;
 
-    // Function to generate a unique color for each value
-    const generateUniqueColor = (
-        value: number
-    ): [number, number, number] => {
-        const hue = value * 360; // Map value (0-1) to hue (0-360)
-        const saturation = 100; // Full saturation
-        const lightness = 50; // Medium lightness
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            const heatmapX = Math.floor(x / scaleX);
+            const heatmapY = Math.floor(y / scaleY);
+            const value = heatmap[heatmapY][heatmapX];
 
-        // Convert HSL to RGB
-        const c =
-            ((1 - Math.abs((2 * lightness) / 100 - 1)) * saturation) / 100;
-        const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-        const m = lightness / 100 - c / 2;
+            // Get interpolated color for heatmap value
+            const [r, g, b] = interpolateColor(value, colors);
 
-        let r, g, b;
-        if (hue < 60) {
-            [r, g, b] = [c, x, 0];
-        } else if (hue < 120) {
-            [r, g, b] = [x, c, 0];
-        } else if (hue < 180) {
-            [r, g, b] = [0, c, x];
-        } else if (hue < 240) {
-            [r, g, b] = [0, x, c];
-        } else if (hue < 300) {
-            [r, g, b] = [x, 0, c];
-        } else {
-            [r, g, b] = [c, 0, x];
+            // Calculate pixel position in imageData array
+            const pos = (y * canvas.width + x) * 4;
+
+            // Blend original image with heatmap color
+            data[pos] = Math.round(data[pos] * (1 - alpha) + r * alpha); // R
+            data[pos + 1] = Math.round(data[pos + 1] * (1 - alpha) + g * alpha); // G
+            data[pos + 2] = Math.round(data[pos + 2] * (1 - alpha) + b * alpha); // B
+            // Alpha channel remains unchanged
         }
-
-        return [
-            Math.round((r + m) * 255),
-            Math.round((g + m) * 255),
-            Math.round((b + m) * 255),
-        ];
-    };
-
-    // Overlay heatmap
-    for (let i = 0; i < data.length; i += 4) {
-        const heatValue = heatmapData[Math.floor(i / 4)];
-        const [r, g, b] = generateUniqueColor(heatValue);
-
-        // Apply color with alpha blending
-        const alpha = 0.7; // Adjust for desired opacity
-        data[i] = Math.round(data[i] * (1 - alpha) + r * alpha);
-        data[i + 1] = Math.round(data[i + 1] * (1 - alpha) + g * alpha);
-        data[i + 2] = Math.round(data[i + 2] * (1 - alpha) + b * alpha);
-        data[i + 3] = 255; // Alpha channel
     }
 
     ctx.putImageData(imageData, 0, 0);

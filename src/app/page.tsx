@@ -27,7 +27,7 @@ const MangoClassifier = () => {
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
-
+    
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -37,7 +37,6 @@ const MangoClassifier = () => {
             setDragActive(false);
         }
     };
-
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -69,6 +68,7 @@ const MangoClassifier = () => {
 
     const makePrediction = async () => {
         setIsAnalyzing(true);
+        setPrediction(null)
         try {
             if (!imageSrc) {
                 throw new Error("No image selected");
@@ -82,7 +82,6 @@ const MangoClassifier = () => {
             );
         }
     };
-
     if (isLoading) {
         return <Skeleton className="w-full h-[400px]" />;
     }
@@ -91,7 +90,7 @@ const MangoClassifier = () => {
     }
 
     return (
-        <Card className="max-w-3xl mx-auto border-0">
+        <Card className="max-w-3xl mx-auto border-0 shadow-none min-h-screen">
             <CardHeader>
                 <CardTitle>Mango Disease Classifier</CardTitle>
             </CardHeader>
@@ -99,7 +98,7 @@ const MangoClassifier = () => {
                 <div className="space-y-6">
                     <div className="relative h-80 p-0 flex items-center justify-center overflow-hidden bg-card border rounded-lg">
                     {imageSrc ? (
-                        <div className="h-80 w-auto aspect-square overflow-hidden flex item-center justify-center relative">
+                        <div className="h-80 w-auto overflow-hidden flex item-center justify-center relative">
                             <Image
                                 src={imageSrc}
                                 alt="Uploaded"
@@ -193,7 +192,7 @@ const MangoClassifier = () => {
                     </Button>
 
                     {prediction && imageSrc && (
-                        <Card>
+                        <Card className="px-0">
                             <CardHeader>
                                 <CardTitle>Diagnosis Results</CardTitle>
                             </CardHeader>
@@ -227,7 +226,7 @@ const MangoClassifier = () => {
                                             <h4 className="font-semibold mb-2">
                                                 Heatmap Visualization:
                                             </h4>
-                                            <div className="relative aspect-square">
+                                            <div className="relative aspect-square h-80 w-80">
                                                 <Image
                                                     src={
                                                         prediction.heatmapUrl ||
@@ -235,7 +234,7 @@ const MangoClassifier = () => {
                                                     }
                                                     alt="Heatmap visualization"
                                                     fill
-                                                    className="object-contain rounded-md"
+                                                    className="object-contain rounded-md h-80 w-80"
                                                 />
                                             </div>
                                             <p className="text-sm text-muted-foreground mt-2">

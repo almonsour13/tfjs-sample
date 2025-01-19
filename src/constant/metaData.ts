@@ -1,6 +1,6 @@
 
 export const MetaData = {
-    title: "MangoLens",
+    title: "Mango Classifier",
     description:
         "A web-based application for managing mango tree health and diagnosing diseases using leaf image analysis.",
     icons: {

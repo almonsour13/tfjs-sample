@@ -1,8 +1,9 @@
 "use client";
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useEffect, ReactNode, useCallback } from "react";
 import * as tf from "@tensorflow/tfjs";
 import { gradClassActivationMap } from "@/utils/grad-cam";
 import { generateHeatmapOverlay } from "@/utils/gerenerate-overlay";
+import { useToast } from "@/hooks/use-toast";
 
 const classes = [
     "Anthracnose",
@@ -52,26 +53,30 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
     const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
     const [prediction, setPrediction] = useState<PredictionResult | null>(null);
     const [showGradCam, setShowGradCam] = useState(false);
+    const { toast } = useToast();
+  
     // Load the TensorFlow.js model
-    const loadModel = async () => {
+    const loadModel = useCallback(async () => {
         try {
             const loadedModel = await tf.loadLayersModel("/model/model.json");
             setModel(loadedModel);
             setIsLoading(false);
+            console.log("Model is loaded")
         } catch (err) {
-            setError(
-                `Failed to load model: ${
+            toast({
+                description: `Prediction failed: ${
                     err instanceof Error ? err.message : "Unknown error"
-                }`
-            );
+                }`,
+                variant:"destructive"
+              })
             setIsLoading(false);
         }
-    };
+    },[toast]);
 
     // Optionally, load the model on mount
     useEffect(() => {
         loadModel();
-    }, []);
+    }, [loadModel]);
 
     const preprocessImage = async (
         imageElement: HTMLImageElement
@@ -92,7 +97,7 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
 
         try {
             if (!model) {
-                throw new Error("Model not loaded");
+                return console.log("Model not loaded");
             }
 
             const img = new Image();
@@ -140,11 +145,12 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             }
             tf.dispose([inputTensor, predictionTensor]);
         } catch (err) {
-            setError(
-                `Prediction failed: ${
+            toast({
+                description: `Prediction failed: ${
                     err instanceof Error ? err.message : "Unknown error"
-                }`
-            );
+                }`,
+                variant:"destructive"
+              })
         } finally {
             setIsAnalyzing(false);
         }
