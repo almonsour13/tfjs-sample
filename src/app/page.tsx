@@ -12,12 +12,13 @@ const MangoClassifier = () => {
         setError,
         prediction,
         setIsAnalyzing,
+        showGradCam,
+        setShowGradCam,
         predict,
     } = useModel();
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         setIsImageLoading(true);
@@ -88,11 +89,22 @@ const MangoClassifier = () => {
                             style={{ objectFit: "contain" }}
                             className="rounded-lg"
                         />
+                        {isAnalyzing && (
+                            <div className="absolute z-30 inset-0 bg-gradient-to-b animate-pulse  from-transparent via-blue-500 to-transparent opacity-30 animate-scan" />
+                        )}
                     </div>
                 )}
-                <canvas ref={canvasRef} style={{ display: "none" }} />
             </div>
-
+            <div className="mb-4 flex items-center">
+                <input
+                    type="checkbox"
+                    id="showGradCam"
+                    checked={showGradCam}
+                    onChange={(e) => setShowGradCam(e.target.checked)}
+                    className="mr-2"
+                />
+                <label htmlFor="showGradCam">Show Heatmap Visualization</label>
+            </div>
             <button
                 onClick={makePrediction}
                 disabled={isImageLoading || isAnalyzing}
@@ -131,7 +143,7 @@ const MangoClassifier = () => {
                         </div>
                     </div>
 
-                    {prediction.heatmapUrl ? (
+                    {prediction.heatmapUrl && (
                         <div className="mb-6">
                             <h4 className="font-semibold text-gray-700 mb-2">
                                 Heatmap Visualization:
@@ -157,8 +169,6 @@ const MangoClassifier = () => {
                                 differences in the {"model's"} focus areas.
                             </p>
                         </div>
-                    ) : (
-                        <div className="h-80 w-80 aspect-square animate-pulse"></div>
                     )}
 
                     <div className="space-y-3">

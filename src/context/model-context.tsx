@@ -29,9 +29,11 @@ interface ModelContextType {
     model: tf.LayersModel | null;
     isLoading: boolean;
     isAnalyzing: boolean;
-    error:string | null;
-    setError:React.Dispatch<React.SetStateAction<string | null>>;
     setIsAnalyzing: React.Dispatch<React.SetStateAction<boolean>>;
+    error: string | null;
+    setError: React.Dispatch<React.SetStateAction<string | null>>;
+    showGradCam: boolean;
+    setShowGradCam: React.Dispatch<React.SetStateAction<boolean>>;
     prediction: PredictionResult | null;
     predict: (image: string) => void;
 }
@@ -48,7 +50,7 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
     const [error, setError] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
     const [prediction, setPrediction] = useState<PredictionResult | null>(null);
-
+    const [showGradCam, setShowGradCam] = useState(false);
     // Load the TensorFlow.js model
     const loadModel = async () => {
         try {
@@ -85,13 +87,13 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
     };
     const predict = async (image: string) => {
         setIsAnalyzing(true);
-        setPrediction(null)
+        setPrediction(null);
 
         try {
             if (!model) {
                 throw new Error("Model not loaded");
             }
-            
+
             const img = new Image();
             img.src = image;
 
@@ -109,11 +111,8 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
                 })
             );
 
-            predictionWithClasses
-                .sort((a, b) => b.probability - a.probability)
-                // .filter((a) => a.probability * 100 > 0);
-
-            
+            predictionWithClasses.sort((a, b) => b.probability - a.probability);
+            // .filter((a) => a.probability * 100 > 0);
 
             const initialPrediction = {
                 className: predictionWithClasses[0].className,
@@ -122,15 +121,22 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             };
 
             setPrediction(initialPrediction);
-            const heatmaps = await gradClassActivationMap(model, inputTensor, [
-                predictedClassIndex,
-            ]);
-            const heatmapUrl = await generateHeatmapOverlay(heatmaps[0], img);
+            if (showGradCam) {
+                const heatmaps = await gradClassActivationMap(
+                    model,
+                    inputTensor,
+                    [predictedClassIndex]
+                );
+                const heatmapUrl = await generateHeatmapOverlay(
+                    heatmaps[0],
+                    img
+                );
 
-            setPrediction((prev) => ({
-                ...prev!,
-                heatmapUrl: heatmapUrl || undefined,
-            }));
+                setPrediction((prev) => ({
+                    ...prev!,
+                    heatmapUrl: heatmapUrl || undefined,
+                }));
+            }
             tf.dispose([inputTensor, predictionTensor]);
         } catch (err) {
             setError(
@@ -152,6 +158,8 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
                 error,
                 setError,
                 setIsAnalyzing,
+                showGradCam,
+                setShowGradCam,
                 prediction,
                 predict,
             }}
