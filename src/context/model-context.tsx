@@ -35,6 +35,7 @@ interface ModelContextType {
     showGradCam: boolean;
     setShowGradCam: React.Dispatch<React.SetStateAction<boolean>>;
     prediction: PredictionResult | null;
+    setPrediction: React.Dispatch<React.SetStateAction<PredictionResult | null>>;
     predict: (image: string) => void;
 }
 
@@ -161,6 +162,7 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
                 showGradCam,
                 setShowGradCam,
                 prediction,
+                setPrediction,
                 predict,
             }}
         >

@@ -1,8 +1,15 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useModel } from "@/context/model-context";
-import { useRef, useState } from "react";
+import { ImagePlus, X } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
 
 const MangoClassifier = () => {
     const {
@@ -15,14 +22,32 @@ const MangoClassifier = () => {
         showGradCam,
         setShowGradCam,
         predict,
+        setPrediction,
     } = useModel();
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [dragActive, setDragActive] = useState(false);
 
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleImageUpload(e.dataTransfer.files[0]);
+        }
+    };
+    const handleImageUpload = (file: File) => {
         setIsImageLoading(true);
-        const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -31,6 +56,15 @@ const MangoClassifier = () => {
             };
             reader.readAsDataURL(file);
         }
+    };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            handleImageUpload(e.target.files[0]);
+        }
+    };
+    const handleRemoveImage = () => {
+        setImageSrc(null);
+        setPrediction(null)
     };
 
     const makePrediction = async () => {
@@ -50,167 +84,210 @@ const MangoClassifier = () => {
     };
 
     if (isLoading) {
-        return <div>Loading Mango Disease Classification model...</div>;
+        return <Skeleton className="w-full h-[400px]" />;
     }
     if (error) {
-        return <div>Error: {error}</div>;
+        return <div className="text-red-500">Error: {error}</div>;
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-4">
-            <h2 className="text-2xl font-bold mb-4">
-                Mango Disease Classifier
-            </h2>
-            <div className="mb-4">
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    ref={fileInputRef}
-                    className="mb-2 block w-full text-sm"
-                />
-            </div>
-
-            <div className="mb-4 relative">
-                {isImageLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-75 rounded-lg">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                    </div>
-                )}
-                {imageSrc && (
-                    <div
-                        className="relative max-w-sm mx-auto rounded-lg shadow-lg"
-                        style={{ height: "300px" }}
-                    >
-                        <Image
-                            src={imageSrc || "/placeholder.svg"}
-                            alt="Upload preview"
-                            fill
-                            style={{ objectFit: "contain" }}
-                            className="rounded-lg"
-                        />
-                        {isAnalyzing && (
-                            <div className="absolute z-30 inset-0 bg-gradient-to-b animate-pulse  from-transparent via-blue-500 to-transparent opacity-30 animate-scan" />
-                        )}
-                    </div>
-                )}
-            </div>
-            <div className="mb-4 flex items-center">
-                <input
-                    type="checkbox"
-                    id="showGradCam"
-                    checked={showGradCam}
-                    onChange={(e) => setShowGradCam(e.target.checked)}
-                    className="mr-2"
-                />
-                <label htmlFor="showGradCam">Show Heatmap Visualization</label>
-            </div>
-            <button
-                onClick={makePrediction}
-                disabled={isImageLoading || isAnalyzing}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg"
-            >
-                {isAnalyzing ? "Analyzing..." : "Analyze Image"}
-            </button>
-
-            {isAnalyzing && (
-                <div className="mt-4 flex justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                </div>
-            )}
-            {prediction && (
-                <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-xl font-bold mb-4">
-                        Diagnosis Results
-                    </h3>
-
-                    <div className="mb-4">
-                        <div className="text-lg">
-                            Primary Diagnosis:
-                            <span
-                                className={`font-bold ml-2 ${
-                                    prediction.className === "Healthy"
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                }`}
-                            >
-                                {prediction.className}
-                            </span>
-                        </div>
-                        <div className="text-gray-600">
-                            Confidence:{" "}
-                            {(prediction.probability * 100).toFixed(1)}%
-                        </div>
-                    </div>
-
-                    {prediction.heatmapUrl && (
-                        <div className="mb-6">
-                            <h4 className="font-semibold text-gray-700 mb-2">
-                                Heatmap Visualization:
-                            </h4>
-                            <div className="relative h-80 w-80 mx-auto">
-                                <Image
-                                    src={
-                                        prediction.heatmapUrl ||
-                                        "/placeholder.svg"
-                                    }
-                                    alt="Heatmap visualization"
-                                    fill
-                                    style={{ objectFit: "contain" }}
-                                    className="rounded-lg shadow-lg"
-                                />
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2">
-                                The heatmap shows areas of the image that
-                                influenced the classification decision. Each
-                                color represents a unique importance level, with
-                                a smooth transition across the spectrum. This
-                                detailed visualization highlights even subtle
-                                differences in the {"model's"} focus areas.
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="space-y-3">
-                        <h4 className="font-semibold text-gray-700">
-                            Detailed Analysis:
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {prediction.probabilities.map(
-                                ({ className, probability }) => (
-                                    <div
-                                        key={className}
-                                        className="space-y-1 p-4 border rounded-lg shadow"
+        <Card className="max-w-3xl mx-auto border-0">
+            <CardHeader>
+                <CardTitle>Mango Disease Classifier</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-6">
+                    <div className="relative h-80 p-0 flex items-center justify-center overflow-hidden bg-card border rounded-lg">
+                    {imageSrc ? (
+                        <div className="h-80 w-auto aspect-square overflow-hidden flex item-center justify-center relative">
+                            <Image
+                                src={imageSrc}
+                                alt="Uploaded"
+                                className="h-80 w-auto object-cover"
+                                width={256}
+                                height={256}
+                            />
+                            {isAnalyzing && (
+                                <>
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/80 to-transparent animate-scan" />
+                                </>
+                            )}
+                            {!isAnalyzing && (
+                                <div className="absolute top-2 right-2 flex space-x-2">
+                                    <Button
+                                        onClick={handleRemoveImage}
+                                        size="icon"
+                                        variant="destructive"
+                                        className="rounded-full bg-destructive/80 hover:opacity-100 transition-opacity"
                                     >
-                                        <div className="flex justify-between text-sm">
-                                            <span>{className}</span>
-                                            <span>
-                                                {(probability * 100).toFixed(1)}
-                                                %
-                                            </span>
+                                        <X className="h-4 w-4" />
+                                        <span className="sr-only">
+                                            Remove image
+                                        </span>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div
+                            className={`flex-1 cursor-pointer flex bg-card hover:bg-muted flex-col items-center justify-center relative h-full w-full rounded-lg ${
+                                dragActive ? "bg-muted" : ""
+                            }`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                            onClick={() =>
+                                document.getElementById("input-image")?.click()
+                            }
+                        >
+                            {!dragActive && (
+                                <div className="flex flex-col gap-2 text-center">
+                                    <div className="flex justify-center text-foreground">
+                                        <div className="rounded-full bg-primary p-4">
+                                            <ImagePlus className="h-8 w-8 text-white" />
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className={`h-2 rounded-full ${
-                                                    className === "Healthy"
-                                                        ? "bg-green-500"
-                                                        : "bg-blue-500"
-                                                }`}
-                                                style={{
-                                                    width: `${
-                                                        probability * 100
-                                                    }%`,
-                                                }}
+                                    </div>
+                                    <div className="space-y-0">
+                                        <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground">
+                                            Click to add image
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            or drag and drop
+                                        </p>
+                                        <div>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                name="image"
+                                                id="input-image"
+                                                className="hidden"
+                                                onChange={handleFileChange}
                                             />
                                         </div>
                                     </div>
-                                )
+                                </div>
                             )}
                         </div>
+                    )}
                     </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="showGradCam"
+                            checked={showGradCam}
+                            onCheckedChange={(checked) =>
+                                setShowGradCam(checked as boolean)
+                            }
+                        />
+                        <Label htmlFor="showGradCam">
+                            Show Heatmap Visualization
+                        </Label>
+                    </div>
+
+                    <Button
+                        onClick={makePrediction}
+                        disabled={isImageLoading || isAnalyzing || !imageSrc}
+                        className="w-full"
+                    >
+                        {isAnalyzing ? "Analyzing..." : "Analyze Image"}
+                    </Button>
+
+                    {prediction && imageSrc && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Diagnosis Results</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-6">
+                                    <div>
+                                        <h4 className="font-semibold mb-2">
+                                            Primary Diagnosis:
+                                        </h4>
+                                        <div
+                                            className={`text-2xl font-bold ${
+                                                prediction.className ===
+                                                "Healthy"
+                                                    ? "text-green-600"
+                                                    : "text-red-600"
+                                            }`}
+                                        >
+                                            {prediction.className}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                            Confidence:{" "}
+                                            {(
+                                                prediction.probability * 100
+                                            ).toFixed(1)}
+                                            %
+                                        </div>
+                                    </div>
+
+                                    {prediction.heatmapUrl && (
+                                        <div>
+                                            <h4 className="font-semibold mb-2">
+                                                Heatmap Visualization:
+                                            </h4>
+                                            <div className="relative aspect-square">
+                                                <Image
+                                                    src={
+                                                        prediction.heatmapUrl ||
+                                                        "/placeholder.svg"
+                                                    }
+                                                    alt="Heatmap visualization"
+                                                    fill
+                                                    className="object-contain rounded-md"
+                                                />
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                The heatmap shows areas of the
+                                                image that influenced the
+                                                classification decision.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <h4 className="font-semibold mb-2">
+                                            Detailed Analysis:
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {prediction.probabilities.map(
+                                                ({
+                                                    className,
+                                                    probability,
+                                                }) => (
+                                                    <div key={className}>
+                                                        <div className="flex justify-between text-sm mb-1">
+                                                            <span>
+                                                                {className}
+                                                            </span>
+                                                            <span>
+                                                                {(
+                                                                    probability *
+                                                                    100
+                                                                ).toFixed(1)}
+                                                                %
+                                                            </span>
+                                                        </div>
+                                                        <Progress
+                                                            value={
+                                                                probability *
+                                                                100
+                                                            }
+                                                            className="h-2"
+                                                        />
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
-            )}
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 

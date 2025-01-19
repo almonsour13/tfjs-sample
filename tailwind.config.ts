@@ -55,7 +55,29 @@ export default {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+		
+		  animation: {
+			scan: 'scan 2s ease-in-out infinite',
+			'zoom-border': 'zoomCorners 2s infinite'
+		},
+		keyframes: {
+			scan: {
+			'0%, 100%': { transform: 'translateY(-100%)' },
+			'50%': { transform: 'translateY(100%)' },
+			},
+			zoomCorners:{
+				'0%': {
+				  transform: 'scale(1)'
+				},
+				'50%': {
+				  transform: 'scale(1.05)' 
+				},
+				'100%': {
+				  transform: 'scale(1)'
+				}
+			  }
+		},
   	}
   },
   plugins: [require("tailwindcss-animate")],
