@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useModel } from "@/context/model-context";
+import { save } from "@/store/store";
 import { ImagePlus, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
@@ -27,7 +28,8 @@ const MangoClassifier = () => {
     const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
-    
+    const [isSaving, setIsSaving] = useState(false)
+
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -63,12 +65,12 @@ const MangoClassifier = () => {
     };
     const handleRemoveImage = () => {
         setImageSrc(null);
-        setPrediction(null)
+        setPrediction(null);
     };
 
     const makePrediction = async () => {
         setIsAnalyzing(true);
-        setPrediction(null)
+        setPrediction(null);
         try {
             if (!imageSrc) {
                 throw new Error("No image selected");
@@ -82,93 +84,105 @@ const MangoClassifier = () => {
             );
         }
     };
+    const handleSave = async () => {
+        setIsSaving(true)
+        if(!imageSrc || !prediction?.probabilities) return;
+        await save({
+            image_data: imageSrc,
+            prob: prediction?.probabilities,
+        })
+        setIsSaving(false)
+        setPrediction(null)
+        setImageSrc(null)
+    };
     if (isLoading) {
         return <Skeleton className="w-full h-[400px]" />;
     }
     if (error) {
         return <div className="text-red-500">Error: {error}</div>;
     }
-
     return (
-        <Card className="max-w-3xl mx-auto border-0 shadow-none min-h-screen">
+        <Card className="border-0 shadow-none min-h-screen">
             <CardHeader>
                 <CardTitle>Mango Disease Classifier</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
                     <div className="relative h-80 p-0 flex items-center justify-center overflow-hidden bg-card border rounded-lg">
-                    {imageSrc ? (
-                        <div className="h-80 w-auto overflow-hidden flex item-center justify-center relative">
-                            <Image
-                                src={imageSrc}
-                                alt="Uploaded"
-                                className="h-80 w-auto object-cover"
-                                width={256}
-                                height={256}
-                            />
-                            {isAnalyzing && (
-                                <>
-                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/80 to-transparent animate-scan" />
-                                </>
-                            )}
-                            {!isAnalyzing && (
-                                <div className="absolute top-2 right-2 flex space-x-2">
-                                    <Button
-                                        onClick={handleRemoveImage}
-                                        size="icon"
-                                        variant="destructive"
-                                        className="rounded-full bg-destructive/80 hover:opacity-100 transition-opacity"
-                                    >
-                                        <X className="h-4 w-4" />
-                                        <span className="sr-only">
-                                            Remove image
-                                        </span>
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div
-                            className={`flex-1 cursor-pointer flex bg-card hover:bg-muted flex-col items-center justify-center relative h-full w-full rounded-lg ${
-                                dragActive ? "bg-muted" : ""
-                            }`}
-                            onDragEnter={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDragOver={handleDrag}
-                            onDrop={handleDrop}
-                            onClick={() =>
-                                document.getElementById("input-image")?.click()
-                            }
-                        >
-                            {!dragActive && (
-                                <div className="flex flex-col gap-2 text-center">
-                                    <div className="flex justify-center text-foreground">
-                                        <div className="rounded-full bg-primary p-4">
-                                            <ImagePlus className="h-8 w-8 text-white" />
+                        {imageSrc ? (
+                            <div className="h-80 w-auto overflow-hidden flex item-center justify-center relative">
+                                <Image
+                                    src={imageSrc}
+                                    alt="Uploaded"
+                                    className="h-80 w-auto object-cover"
+                                    width={256}
+                                    height={256}
+                                />
+                                {isAnalyzing && (
+                                    <>
+                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/80 to-transparent animate-scan" />
+                                    </>
+                                )}
+                                {!isAnalyzing && (
+                                    <div className="absolute top-2 right-2 flex space-x-2">
+                                        <Button
+                                            onClick={handleRemoveImage}
+                                            size="icon"
+                                            variant="destructive"
+                                            className="rounded-full bg-destructive/80 hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">
+                                                Remove image
+                                            </span>
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div
+                                className={`flex-1 cursor-pointer flex bg-card hover:bg-muted flex-col items-center justify-center relative h-full w-full rounded-lg ${
+                                    dragActive ? "bg-muted" : ""
+                                }`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                                onClick={() =>
+                                    document
+                                        .getElementById("input-image")
+                                        ?.click()
+                                }
+                            >
+                                {!dragActive && (
+                                    <div className="flex flex-col gap-2 text-center">
+                                        <div className="flex justify-center text-foreground">
+                                            <div className="rounded-full bg-primary p-4">
+                                                <ImagePlus className="h-8 w-8 text-white" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-0">
+                                            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground">
+                                                Click to add image
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                or drag and drop
+                                            </p>
+                                            <div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    name="image"
+                                                    id="input-image"
+                                                    className="hidden"
+                                                    onChange={handleFileChange}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="space-y-0">
-                                        <p className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground">
-                                            Click to add image
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            or drag and drop
-                                        </p>
-                                        <div>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                name="image"
-                                                id="input-image"
-                                                className="hidden"
-                                                onChange={handleFileChange}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center space-x-2">
                         <Checkbox
@@ -198,24 +212,46 @@ const MangoClassifier = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-6">
+                                    {/* {prediction.imageRmvBg && (
+                                        <div>
+                                            <h4 className="font-semibold mb-2">
+                                                Remove BG:
+                                            </h4>
+                                            <div className="relative aspect-square h-80 w-80">
+                                                <Image
+                                                    src={
+                                                        prediction.imageRmvBg ||
+                                                        "/placeholder.svg"
+                                                    }
+                                                    alt="Heatmap visualization"
+                                                    fill
+                                                    className="object-contain rounded-md h-80 w-80"
+                                                />
+                                            </div>
+                                        </div>
+                                    )} */}
                                     <div>
                                         <h4 className="font-semibold mb-2">
                                             Primary Diagnosis:
                                         </h4>
                                         <div
                                             className={`text-2xl font-bold ${
-                                                prediction.className ===
-                                                "Healthy"
+                                                prediction.probabilities[0]
+                                                    .className === "Healthy"
                                                     ? "text-green-600"
                                                     : "text-red-600"
                                             }`}
                                         >
-                                            {prediction.className}
+                                            {
+                                                prediction.probabilities[0]
+                                                    .className
+                                            }
                                         </div>
                                         <div className="text-sm text-muted-foreground">
                                             Confidence:{" "}
                                             {(
-                                                prediction.probability * 100
+                                                prediction.probabilities[0]
+                                                    .probability * 100
                                             ).toFixed(1)}
                                             %
                                         </div>
@@ -279,6 +315,14 @@ const MangoClassifier = () => {
                                                 )
                                             )}
                                         </div>
+                                    </div>
+                                    <div className="">
+                                        <Button
+                                            onClick={handleSave}
+                                            className="w-full"
+                                        >
+                                            {isSaving?"saving....":"save"}
+                                        </Button>
                                     </div>
                                 </div>
                             </CardContent>

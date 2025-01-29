@@ -1,9 +1,10 @@
+import Header from "@/components/common/header";
+import { Toaster } from "@/components/ui/toaster";
+import { MetaData } from "@/constant/metaData";
+import { ModelProvider } from "@/context/model-context";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ModelProvider } from "@/context/model-context";
-import { MetaData } from "@/constant/metaData";
-import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -43,7 +44,10 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
             >
                 <ModelProvider>
-                    {children}
+                    <div className="w-full min-h-screen flex flex-col">
+                        <Header/>
+                        {children}
+                    </div>
                     <Toaster />
                 </ModelProvider>
             </body>

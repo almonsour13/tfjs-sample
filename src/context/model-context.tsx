@@ -1,9 +1,9 @@
 "use client";
-import React, { createContext, useState, useEffect, ReactNode, useCallback } from "react";
-import * as tf from "@tensorflow/tfjs";
-import { gradClassActivationMap } from "@/utils/grad-cam";
-import { generateHeatmapOverlay } from "@/utils/gerenerate-overlay";
 import { useToast } from "@/hooks/use-toast";
+import { generateHeatmapOverlay } from "@/utils/gerenerate-overlay";
+import { gradClassActivationMap } from "@/utils/grad-cam";
+import * as tf from "@tensorflow/tfjs";
+import React, { createContext, ReactNode, useCallback, useEffect, useState } from "react";
 
 const classes = [
     "Anthracnose",
@@ -17,12 +17,11 @@ const classes = [
 ];
 
 interface PredictionResult {
-    className: string;
-    probability: number;
     probabilities: Array<{
         className: string;
         probability: number;
     }>;
+    imageRmvBg?: string;
     heatmapUrl?: string;
 }
 // Define the type for the context
@@ -102,7 +101,13 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
 
             const img = new Image();
             img.src = image;
-
+            // const imageRmvBg = await removeBg(img);
+            // if(imageRmvBg){
+            //     setPrediction((prev) => ({
+            //         ...prev!,
+            //         imageRmvBg: imageRmvBg as string,
+            //     }));
+            // }
             const inputTensor = await preprocessImage(img);
             const predictionTensor = model.predict(inputTensor) as tf.Tensor;
             const predictionArray = await predictionTensor.data();
@@ -121,8 +126,6 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             // .filter((a) => a.probability * 100 > 0);
 
             const initialPrediction = {
-                className: predictionWithClasses[0].className,
-                probability: predictionWithClasses[0].probability,
                 probabilities: predictionWithClasses,
             };
 
@@ -145,6 +148,7 @@ export const ModelProvider: React.FC<{ children: ReactNode }> = ({
             }
             tf.dispose([inputTensor, predictionTensor]);
         } catch (err) {
+            console.log(err);
             toast({
                 description: `Prediction failed: ${
                     err instanceof Error ? err.message : "Unknown error"
